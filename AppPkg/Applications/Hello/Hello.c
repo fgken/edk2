@@ -1,28 +1,11 @@
-/** @file
-    A simple, basic, EDK II native, "hello" application to verify that
-    we can build applications without LibC.
-
-    Copyright (c) 2010 - 2011, Intel Corporation. All rights reserved.<BR>
-    This program and the accompanying materials
-    are licensed and made available under the terms and conditions of the BSD License
-    which accompanies this distribution. The full text of the license may be found at
-    http://opensource.org/licenses/bsd-license.
-
-    THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-    WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
-**/
 #include  <Uefi.h>
-#include  <Library/UefiLib.h>
+#include  <Library/UefiBootServicesTableLib.h>
+#include  <Library/DevicePathLib.h>
 #include  <Library/ShellCEntryLib.h>
+#include  <Library/ShellLib.h>
+#include  <Library/UefiLib.h>
+#include  <Protocol/LoadedImage.h>
 
-/***
-  Print a welcoming message.
-
-  Establishes the main structure of the application.
-
-  @retval  0         The application exited normally.
-  @retval  Other     An error occurred.
-***/
 INTN
 EFIAPI
 ShellAppMain (
@@ -30,8 +13,57 @@ ShellAppMain (
   IN CHAR16 **Argv
   )
 {
-  Print(L"Hello there fellow Programmer.\n");
-  Print(L"Welcome to the world of EDK II.\n");
+	EFI_STATUS					Status;
+	CHAR16						*FileName = L"\\uefi-app-loop.efi";
+	EFI_DEVICE_PATH_PROTOCOL	*FilePath = NULL;
+	EFI_HANDLE					TargetAppHandle = NULL;
+	EFI_HANDLE					*FileSystemHandles = NULL;
+	UINTN						NumberFileSystemHandles = 0;
+	CHAR16						*FilePathText = NULL;
 
-  return(0);
+	// Get simple file system handles
+	Status = gBS->LocateHandleBuffer(
+			ByProtocol,
+			&gEfiSimpleFileSystemProtocolGuid,
+			NULL,
+			&NumberFileSystemHandles,
+			&FileSystemHandles
+			);
+	if(EFI_ERROR(Status)){
+		Print(L"Error: LocateHandleBuffer failed\n");
+		return(-1);
+	}
+
+	// Get device path of the file
+	FilePath = FileDevicePath(FileSystemHandles[0], FileName);
+	if(FilePath == NULL){
+		Print(L"Error: DeviceFilePath\n");
+		return(-1);
+	}
+
+	if((FilePathText = ConvertDevicePathToText(FilePath, FALSE, FALSE)) != NULL){
+		Print(L"FilePath = %s\n", FilePathText);
+	}
+
+	// Load data of the file into memory
+	Status = gBS->LoadImage(
+			TRUE,
+			gImageHandle,
+			FilePath,
+			NULL,
+			0,
+			&TargetAppHandle);
+
+	if(EFI_ERROR(Status)){
+		Print(L"Error: LoadImage\n");
+		return(-1);
+	}
+	Print(L"TargetAppHandle = 0x%x\n", TargetAppHandle);
+
+	// Execute the image
+	Status = gBS->StartImage(TargetAppHandle, 0, 0);
+	Print(L"StartImage, Return Value = %d(0x%x)\n", Status, Status);
+	
+	return(0);
 }
+
