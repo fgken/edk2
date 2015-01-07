@@ -168,56 +168,48 @@ ElfLoadFile (
   return EFI_SUCCESS;
 }
 
-/**
- Load an ELF segment into memory.
 
- This function assumes the ELF file is valid.
- This function is meant to be called for PT_LOAD type segments only.
-**/
-STATIC
-EFI_STATUS
-ElfLoadSegment (
-  IN  CONST VOID  *ElfImage,
-  IN  CONST VOID  *PHdr,
-  IN  LIST_ENTRY  *LoadList
-  )
-{
-  VOID             *FileSegment;
-  VOID             *MemSegment;
-  UINTN             ExtraZeroes;
-  UINTN             ExtraZeroesCount;
-  RUNAXF_LOAD_LIST *LoadNode;
+// Program load list created.
+  // Shutdown UEFI, copy and jump to code.
+  if (!IsListEmpty (&LoadList) && !EFI_ERROR (Status)) {
+    // Exit boot services here. This means we cannot return and cannot assume to
+    // have access to UEFI functions.
+    Status = ShutdownUefiBootServices ();
+    if (EFI_ERROR (Status)) {
+      DEBUG ((EFI_D_ERROR,"Can not shutdown UEFI boot services. Status=0x%X\n",
+              Status));
+    } else {
+      // Process linked list. Copy data to Memory.
+      Node = GetFirstNode (&LoadList);
+      while (!IsNull (&LoadList, Node)) {
+        LoadNode = (RUNAXF_LOAD_LIST *)Node;
+        // Do we have data to copy or do we need to set Zeroes (.bss)?
+        if (LoadNode->Zeroes) {
+          ZeroMem ((VOID*)LoadNode->MemOffset, LoadNode->Length);
+        } else {
+          CopyMem ((VOID *)LoadNode->MemOffset, (VOID *)LoadNode->FileOffset,
+                   LoadNode->Length);
+        }
+        Node = GetNextNode (&LoadList, Node);
+      }
 
-#ifdef MDE_CPU_ARM
-  Elf32_Phdr  *ProgramHdr;
-  ProgramHdr = (Elf32_Phdr *)PHdr;
-#elif defined(MDE_CPU_AARCH64)
-  Elf64_Phdr  *ProgramHdr;
-  ProgramHdr = (Elf64_Phdr *)PHdr;
-#endif
+      //
+      // Switch off interrupts, caches, mmu, etc
+      //
+      Status = PreparePlatformHardware ();
+      ASSERT_EFI_ERROR (Status);
 
-  ASSERT (ElfImage != NULL);
-  ASSERT (ProgramHdr != NULL);
+      StartElf = (ELF_ENTRYPOINT)Entrypoint;
+      StartElf (0,0,0,0);
 
-  FileSegment = (VOID *)((UINTN)ElfImage + ProgramHdr->p_offset);
-  MemSegment = (VOID *)ProgramHdr->p_vaddr;
+ 
 
-  // If the segment's memory size p_memsz is larger than the file size p_filesz,
-  // the "extra" bytes are defined to hold the value 0 and to follow the
-  // segment's initialised area.
-  // This is typically the case for the .bss segment.
-  // The file size may not be larger than the memory size.
-  if (ProgramHdr->p_filesz > ProgramHdr->p_memsz) {
-    ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (STR_RUNAXF_ELFBADFORMAT), gRunAxfHiiHandle);
-    return EFI_INVALID_PARAMETER;
-  }
 
-  // Load the segment in memory.
-  if (ProgramHdr->p_filesz != 0) {
-    DEBUG ((EFI_D_INFO, "Loading segment from 0x%lx to 0x%lx (size = %ld)\n",
-                 FileSegment, MemSegment, ProgramHdr->p_filesz));
 
-    LoadNode = AllocateRuntimeZeroPool (sizeof (RUNAXF_LOAD_LIST));
+
+
+
+
 
 
 EFI_STATUS
