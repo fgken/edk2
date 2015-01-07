@@ -257,6 +257,10 @@ LoadFileByName (
 	return EFI_SUCCESS;
 }
 
+void foo(void)
+{
+}
+
 INTN
 EFIAPI
 ShellAppMain (
@@ -275,8 +279,18 @@ ShellAppMain (
 	UINTN						FileSize;
 	UINT8						*FileData;
 
-	LoadFileByName(L"fs0:\\tmp", &FileData, &FileSize);
+	LoadFileByName(L"fs0:\\out-serial-A.bin", &FileData, &FileSize);
+
+	Print(L"jump addres = %lx\n", *FileData);
+	Print(L"%x %x %x %x %x %x %x %x\n",
+			FileData[0], FileData[1], FileData[2], FileData[3], 
+			FileData[4], FileData[5], FileData[6], FileData[7]);
+
+	goto *(FileData);
+
+	// Unreachable!!!
 	return EFI_SUCCESS;
+
 
 	// Get simple file system handles
 	Status = gBS->LocateHandleBuffer(
