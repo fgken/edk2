@@ -247,6 +247,10 @@ LoadFileByName (
 	Status = ShellReadFile(FileHandle, &Size, Data);
 	CheckStatus(Status, return(Status));
 
+	// Close file
+	Status = ShellCloseFile(&FileHandle);
+	CheckStatus(Status, return(Status));
+
 	*FileSize = Size;
 	*FileData = Data;
 
