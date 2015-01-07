@@ -8,6 +8,10 @@
 #include  <Protocol/LoadedImage.h>
 #include  <Protocol/LoadFile.h>
 
+#include  "elf_common.h"
+#include  "elf64.h"
+
+
 //// ArmPlatformPkg/Library/ArmShellCmdRunAxf/ElfLoader.c
 //typedef VOID (*ELF_ENTRYPOINT)(UINTN arg0, UINTN arg1,
 //                               UINTN arg2, UINTN arg3);
@@ -212,6 +216,8 @@
 	}\
 }
 
+typedef VOID (*ELF_ENTRYPOINT)(UINTN arg);
+
 EFI_STATUS
 EFIAPI
 LoadFileByName (
@@ -255,6 +261,16 @@ LoadFileByName (
 	*FileData = Data;
 
 	return EFI_SUCCESS;
+}
+
+EFI_STATUS
+EFIAPI
+LoadElf (
+	IN  CONST VOID		*ElfImage,
+	OUT ELF_ENTRYPOINT	**EntryPoint
+	)
+{
+	return (EFI_SUCCESS);
 }
 
 EFI_STATUS
@@ -329,17 +345,18 @@ ShellAppMain (
   IN CHAR16 **Argv
   )
 {
-	EFI_STATUS					Status;
-	CHAR16						*FileName = L"fs0:\\out-serial-A.elf";
-	UINTN						FileSize;
-	UINT8						*FileData;
+	EFI_STATUS		Status;
+	CHAR16			*FileName = L"fs0:\\out-serial-A.elf";
+	UINTN			FileSize;
+	UINT8			*FileData;
+	ELF_ENTRYPOINT	*EntryPoint = NULL;
 
 	// Load ELF file to buffer
 	Status = LoadFileByName(FileName, &FileData, &FileSize);
 	CheckStatus(Status, return(-1));
 
 	// Dispose the ELF executables on memory
-	Status = LoadElf64(FileData);
+	Status = LoadElf(FileData, &EntryPoint);
 
 	// ExitBootServices
 	
