@@ -257,40 +257,19 @@ LoadFileByName (
 	return EFI_SUCCESS;
 }
 
-void foo(void)
-{
-}
-
-INTN
+EFI_STATUS
 EFIAPI
-ShellAppMain (
-  IN UINTN Argc,
-  IN CHAR16 **Argv
-  )
+RunUefiAppByName (
+	IN  CONST CHAR16	*FileName,
+	OUT INTN			*ReturnValue
+	)
 {
 	EFI_STATUS					Status;
-	CHAR16						*FileName = L"\\uefi-app-loop.efi";
 	EFI_DEVICE_PATH_PROTOCOL	*FilePath = NULL;
 	EFI_HANDLE					TargetAppHandle = NULL;
 	EFI_HANDLE					*FileSystemHandles = NULL;
 	UINTN						NumberFileSystemHandles = 0;
 	CHAR16						*FilePathText = NULL;
-
-	UINTN						FileSize;
-	UINT8						*FileData;
-
-	LoadFileByName(L"fs0:\\out-serial-A.bin", &FileData, &FileSize);
-
-	Print(L"jump addres = %lx\n", *FileData);
-	Print(L"%x %x %x %x %x %x %x %x\n",
-			FileData[0], FileData[1], FileData[2], FileData[3], 
-			FileData[4], FileData[5], FileData[6], FileData[7]);
-
-	goto *(FileData);
-
-	// Unreachable!!!
-	return EFI_SUCCESS;
-
 
 	// Get simple file system handles
 	Status = gBS->LocateHandleBuffer(
@@ -334,7 +313,54 @@ ShellAppMain (
 	// Execute the image
 	Status = gBS->StartImage(TargetAppHandle, 0, 0);
 	Print(L"StartImage, Return Value = %d(0x%x)\n", Status, Status);
+
+	if(ReturnValue != NULL){
+		*ReturnValue = Status;
+	}
+
+	return(EFI_SUCCESS);
+}
+
+
+INTN
+EFIAPI
+ShellAppMain (
+  IN UINTN Argc,
+  IN CHAR16 **Argv
+  )
+{
+	EFI_STATUS					Status;
+	CHAR16						*FileName = L"fs0:\\out-serial-A.elf";
+	UINTN						FileSize;
+	UINT8						*FileData;
+
+	// Load ELF file to buffer
+	Status = LoadFileByName(FileName, &FileData, &FileSize);
+	CheckStatus(Status, return(-1));
+
+	// Dispose the ELF executables on memory
+	Status = LoadElf64(FileData);
+
+	// ExitBootServices
 	
-	return(0);
+	// Jump to the entrypoint of executables
+
+	Print(L"jump addres = %lx\n", *FileData);
+	Print(L"%x %x %x %x %x %x %x %x\n",
+			FileData[0], FileData[1], FileData[2], FileData[3], 
+			FileData[4], FileData[5], FileData[6], FileData[7]);
+
+	goto *(FileData);
+
+	// Unreachable!!!
+	return 0;
+
+//	{
+//		INTN ReturnValue = 0;
+//		Status = StartUefiAppByName(FileName, &ReturnValue);
+//		CheckStatus(Status, return(-1));
+//	}
+//
+//	return 0;
 }
 
