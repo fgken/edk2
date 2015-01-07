@@ -265,17 +265,42 @@ LoadFileByName (
 
 EFI_STATUS
 EFIAPI
-LoadElf (
+ElfLoadSegment (
 	IN  CONST VOID		*ElfImage,
 	OUT ELF_ENTRYPOINT	**EntryPoint
 	)
 {
+	EFI_STATUS	Status;
+	UINT8		*ProgramHdr;
+	UINTN		Index;
+	UINTN		ImageSize;
+
+	Elf64_Ehdr	*ElfHdr;
+	Elf64_Phdr	*ProgramHdrPtr;
+
+	ElfHdr = (Elf64_Ehdr *)ElfImage;
+	ProgramHdr = (UINT8 *)ElfImage + ElfHdr->e_phoff;
+
+	// Load every loadable ELF segment into memory
+	for(Index = 0; Index < ElfHdr->e_phnum; Index++){
+		ProgramHdrPtr = (Elf64_Phdr *)ProgramHdr;
+
+		// Only consider PT_LOAD type segments
+		if(ProgramHdrPtr->p_type == PT_LOAD){
+			// Load the segment in memory
+			
+		}
+
+		// Get next program header
+		Programhdr += ElfHdr->e_phentsize;
+	}
+
 	return (EFI_SUCCESS);
 }
 
 EFI_STATUS
 EFIAPI
-RunUefiAppByName (
+StartUefiAppByName (
 	IN  CONST CHAR16	*FileName,
 	OUT INTN			*ReturnValue
 	)
@@ -356,7 +381,7 @@ ShellAppMain (
 	CheckStatus(Status, return(-1));
 
 	// Dispose the ELF executables on memory
-	Status = LoadElf(FileData, &EntryPoint);
+	Status = ElfLoadSegment(FileData, &EntryPoint);
 
 	// ExitBootServices
 	
