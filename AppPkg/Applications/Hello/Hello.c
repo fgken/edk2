@@ -213,34 +213,42 @@
 }
 
 EFI_STATUS
-LoadElf64(CHAR16 *FileName)
+EFIAPI
+LoadFileByName (
+	IN  CONST CHAR16	*FileName,
+	OUT UINT8			**FileData,
+	OUT UINTN			*FileSize
+	)
 {
 	EFI_STATUS					Status;
 	SHELL_FILE_HANDLE			FileHandle;
 	EFI_FILE_INFO				*Info;
-	UINTN						FileSize;
-	UINT8						*FileData;
+	UINTN						Size;
+	UINT8						*Data;
 
 	// Open File by shell protocol
 	Status = ShellOpenFileByName(FileName, &FileHandle, EFI_FILE_MODE_READ, 0);
-	CheckStatus(Status, return(-1));
+	CheckStatus(Status, return(Status));
 
 	// Get File Info
 	Info = ShellGetFileInfo(FileHandle);
-	FileSize = (UINTN)Info->FileSize;
+	Size = (UINTN)Info->FileSize;
 	FreePool(Info);
 
 	// Allocate buffer to read file.
 	// 'Runtime' so we can access it after ExitBootServices().
-	FileData = AllocateRuntimeZeroPool(FileSize);
-	if(FileData == NULL){
+	Data = AllocateRuntimeZeroPool(Size);
+	if(Data == NULL){
 		Print(L"Error: AllocateRuntimeZeroPool failed\n");
-		return(-1);
+		return(EFI_OUT_OF_RESOURCES);
 	}
 
 	// Read file into Buffer
-	Status = ShellReadFile(FileHandle, &FileSize, FileData);
-	CheckStatus(Status, return(-1));
+	Status = ShellReadFile(FileHandle, &Size, Data);
+	CheckStatus(Status, return(Status));
+
+	*FileSize = Size;
+	*FileData = Data;
 
 	return EFI_SUCCESS;
 }
@@ -260,7 +268,10 @@ ShellAppMain (
 	UINTN						NumberFileSystemHandles = 0;
 	CHAR16						*FilePathText = NULL;
 
-	LoadElf64(L"fs0:\\tmp");
+	UINTN						FileSize;
+	UINT8						*FileData;
+
+	LoadFileByName(L"fs0:\\tmp", &FileData, &FileSize);
 	return EFI_SUCCESS;
 
 	// Get simple file system handles
