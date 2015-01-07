@@ -35,6 +35,8 @@
   UefiLib
   ShellCEntryLib
   ShellLib
+  MemoryAllocationLib
 
 [Protocols]
   gEfiLoadedImageProtocolGuid
+  gEfiLoadFileProtocolGuid
