@@ -205,103 +205,42 @@
 //      StartElf (0,0,0,0);
 //
 
-
-
-
-
-
-
+#define CheckStatus(Status, Code)	{\
+	if(EFI_ERROR(Status)){\
+		Print(L"Error: Status = %d, LINE=%d in %s\n", (Status), __LINE__, __func__);\
+		Code;\
+	}\
+}
 
 EFI_STATUS
-LoadELF64(CHAR16 *FileName)
+LoadElf64(CHAR16 *FileName)
 {
 	EFI_STATUS					Status;
-	EFI_DEVICE_PATH_PROTOCOL	*FilePath = NULL;
-	EFI_HANDLE					*FileSystemHandles = NULL;
-	UINTN						NumberFileSystemHandles = 0;
-	CHAR16						*FilePathText = NULL;
+	SHELL_FILE_HANDLE			FileHandle;
+	EFI_FILE_INFO				*Info;
+	UINTN						FileSize;
+	UINT8						*FileData;
 
+	// Open File by shell protocol
+	Status = ShellOpenFileByName(FileName, &FileHandle, EFI_FILE_MODE_READ, 0);
+	CheckStatus(Status, return(-1));
 
-	// Get simple file system handles
-	Status = gBS->LocateHandleBuffer(
-			ByProtocol,
-			&gEfiSimpleFileSystemProtocolGuid,
-			NULL,
-			&NumberFileSystemHandles,
-			&FileSystemHandles
-			);
-	if(EFI_ERROR(Status)){
-		Print(L"Error: LocateHandleBuffer failed\n");
+	// Get File Info
+	Info = ShellGetFileInfo(FileHandle);
+	FileSize = (UINTN)Info->FileSize;
+	FreePool(Info);
+
+	// Allocate buffer to read file.
+	// 'Runtime' so we can access it after ExitBootServices().
+	FileData = AllocateRuntimeZeroPool(FileSize);
+	if(FileData == NULL){
+		Print(L"Error: AllocateRuntimeZeroPool failed\n");
 		return(-1);
 	}
 
-	// Get device path of the file
-	FilePath = FileDevicePath(FileSystemHandles[0], FileName);
-	if(FilePath == NULL){
-		Print(L"Error: DeviceFilePath\n");
-		return(-1);
-	}
-
-	if((FilePathText = ConvertDevicePathToText(FilePath, FALSE, FALSE)) != NULL){
-		Print(L"FilePath = %s\n", FilePathText);
-	}
-
-	// Load the file into memory
-	{
-		EFI_DEVICE_PATH_PROTOCOL *DevicePath;
-		EFI_HANDLE DeviceHandle;
-		EFI_LOAD_FILE_PROTOCOL *LoadFile;
-		UINT8 *ImageBuffer = NULL;
-		UINTN ImageBufferSize = 0;
-
-		// Get device handle including filepath
-		DevicePath = DuplicateDevicePath(FilePath);
-		Status = gBS->LocateDevicePath(&gEfiLoadFileProtocolGuid, &DevicePath, &DeviceHandle);
-		if(EFI_ERROR(Status)){
-			Print(L"Error: LocateDevicePath failed, Status = %d\n", Status);
-			return(-1);
-		}
-
-		// Get EFI_LOAD_FILE_PROTOCOL
-		Status = gBS->HandleProtocol(DeviceHandle, &gEfiLoadFileProtocolGuid, (VOID**)&LoadFile);
-		if(EFI_ERROR(Status)){
-			Print(L"Error: HandleProtocol failed, Status = %d", Status);
-			return(-1);
-		}
-
-		// Retrieve the file size
-		ImageBuffer = NULL;
-		ImageBufferSize = 0;
-		Status = LoadFile->LoadFile(
-				LoadFile,
-				DevicePath,
-				FALSE,
-				&ImageBufferSize,
-				ImageBuffer);
-		if(Status == EFI_BUFFER_TOO_SMALL){
-			// Allocate memory of buffer
-			ImageBuffer = AllocatePool(ImageBufferSize);
-			if(ImageBuffer == NULL){
-				Print(L"Error: AllocatePool failed\n");
-			}
-
-			// Load the file
-			Status = LoadFile->LoadFile(
-					LoadFile,
-					DevicePath,
-					FALSE,
-					&ImageBufferSize,
-					ImageBuffer);
-			if(EFI_ERROR(Status)){
-				Print(L"Error: LoadFile failed, Status = %d\n", Status);
-				return(-1);
-			}
-		}
-		else{
-			Print(L"Error: LoadFile, Status = %d\n", Status);
-			return(-1);
-		}
-	}
+	// Read file into Buffer
+	Status = ShellReadFile(FileHandle, &FileSize, FileData);
+	CheckStatus(Status, return(-1));
 
 	return EFI_SUCCESS;
 }
@@ -321,7 +260,8 @@ ShellAppMain (
 	UINTN						NumberFileSystemHandles = 0;
 	CHAR16						*FilePathText = NULL;
 
-	LoadELF64(L"\\Main.debug");
+	LoadElf64(L"fs0:\\tmp");
+	return EFI_SUCCESS;
 
 	// Get simple file system handles
 	Status = gBS->LocateHandleBuffer(
