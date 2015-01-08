@@ -1,6 +1,1 @@
-gcc -nostdlib -e foo out-serial-A.c
-objdump -D a.out
-echo ""
-echo "============================================"
-echo "Create out-serial-A.bin by hex editor"
-echo "============================================"
+gcc -nostdlib -e foo -o out-serial-A.elf out-serial-A.c
