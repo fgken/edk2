@@ -189,6 +189,10 @@ ShellAppMain (
 	UINT8			*FileData;
 	VOID			*EntryPoint = NULL;
 
+	if(2 <= Argc){
+		FileName = Argv[1];
+	}
+
 	// Load the ELF file to buffer
 	Print(L"Load the file = %s\n", FileName);
 	Status = LoadFileByName(FileName, &FileData, &FileSize);
@@ -197,6 +201,7 @@ ShellAppMain (
 	// Load the program section(PT_LOAD) of the ELF executable into memory
 	Print(L"Load the program section of the ELF executable into memory\n");
 	Status = ElfLoadSegment(FileData, &EntryPoint);
+	CheckStatus(Status, return(-1));
 
 	// ExitBootServices
 	
